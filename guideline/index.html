@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Postmark for Acelle Mail — User Guide</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root {
+    --fg: #1f2933;
+    --fg-soft: #52606d;
+    --muted: #7b8794;
+    --line: #e4e7eb;
+    --line-soft: #f1f4f7;
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --accent: #3b82f6;
+    --accent-soft: #eff6ff;
+    --code-bg: #f6f8fa;
+    --code-fg: #24292f;
+    --note-bg: #fffbeb;
+    --note-border: #fbbf24;
+    --table-stripe: #fafbfc;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+    margin: 0;
+    color: var(--fg);
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+}
+.container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+}
+h1, h2, h3, h4 {
+    color: var(--fg);
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 2.2em 0 0.6em;
+    scroll-margin-top: 24px;
+}
+h1 {
+    font-size: 2.2em;
+    margin-top: 0;
+    margin-bottom: 0.4em;
+    letter-spacing: -0.01em;
+}
+h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.35em;
+    border-bottom: 1px solid var(--line);
+}
+h3 { font-size: 1.18em; }
+h4 { font-size: 1.02em; color: var(--fg-soft); }
+p { margin: 0.8em 0; }
+a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color .12s;
+}
+a:hover { border-bottom-color: var(--accent); }
+hr {
+    height: 1px;
+    border: 0;
+    background: var(--line);
+    margin: 3em 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.8em 0; }
+li { margin: 0.25em 0; }
+li > p { margin: 0.3em 0; }
+strong { color: var(--fg); font-weight: 600; }
+em { color: var(--fg-soft); }
+code {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+}
+pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 16px 18px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    line-height: 1.55;
+    margin: 1em 0;
+}
+pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-size: 0.92em;
+}
+blockquote {
+    margin: 1.2em 0;
+    padding: 14px 18px 14px 18px;
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    border-radius: 0 6px 6px 0;
+    color: var(--fg-soft);
+}
+blockquote p:first-child { margin-top: 0; }
+blockquote p:last-child { margin-bottom: 0; }
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.2em 0;
+    font-size: 0.96em;
+    box-shadow: var(--shadow);
+    border-radius: 6px;
+    overflow: hidden;
+}
+thead { background: var(--bg-soft); }
+th, td {
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+}
+th {
+    font-weight: 600;
+    color: var(--fg);
+    background: var(--bg-soft);
+}
+tbody tr:nth-child(even) { background: var(--table-stripe); }
+img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.4em auto;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 16px rgba(15,23,42,.06);
+}
+/* Table of Contents — the first ordered list right after H1 */
+.container > ol:first-of-type {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 24px 18px 44px;
+    counter-reset: toc;
+    list-style: none;
+}
+.container > ol:first-of-type > li {
+    counter-increment: toc;
+    position: relative;
+    padding-left: 1.4em;
+    margin: 0.32em 0;
+}
+.container > ol:first-of-type > li::before {
+    content: counter(toc) ".";
+    position: absolute;
+    left: 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+    .container { padding: 32px 18px 64px; }
+    h1 { font-size: 1.7em; }
+    h2 { font-size: 1.3em; }
+    table { font-size: 0.9em; }
+    th, td { padding: 8px 10px; }
+}
+@media print {
+    .container { max-width: none; padding: 0; }
+    img { box-shadow: none; }
+    a { color: var(--fg); border-bottom: 0; }
+    h1, h2 { break-after: avoid; }
+    img, table, pre, blockquote { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<main class="container">
+<h1 id="postmark-for-acelle-mail-user-guide">Postmark for Acelle Mail — User Guide</h1>
+<p>A drop-in plugin that adds <strong>Postmark</strong> (<code>postmarkapp.com</code>) as a sending-server type in Acelle. Postmark is famous for <strong>best-in-class transactional deliverability</strong> — they&#39;re transactional-focused, IP-isolated, and refuse to onboard cold-email senders. If you care about emails landing in the Primary tab on Gmail, Postmark is the gold-standard backend. This plugin sends via Postmark&#39;s REST API and <strong>auto-registers the bounce / spam webhook on first send</strong>.</p>
+<hr>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#1-requirements">Requirements</a></li>
+<li><a href="#2-install-the-plugin">Install the plugin</a></li>
+<li><a href="#3-enable-the-plugin">Enable the plugin</a></li>
+<li><a href="#4-add-postmark-as-a-sending-server">Add Postmark as a sending server</a></li>
+<li><a href="#5-configure-server-token-optional-account-token-message-stream">Configure Server Token (+ optional Account Token + Message Stream)</a></li>
+<li><a href="#6-auto-registered-webhook-how-it-works">Auto-registered webhook — how it works</a></li>
+<li><a href="#7-sending-identities-signatures-dkim-domains">Sending identities (signatures + DKIM domains)</a></li>
+<li><a href="#8-test-the-connection">Test the connection</a></li>
+<li><a href="#9-assign-the-server-to-a-plan-or-customer">Assign the server to a plan or customer</a></li>
+<li><a href="#10-troubleshooting">Troubleshooting</a></li>
+<li><a href="#11-uninstall">Uninstall</a></li>
+</ol>
+<hr>
+<h2 id="1-requirements">1. Requirements</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Minimum</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Acelle Mail</strong></td>
+<td>4.2.0 or newer</td>
+</tr>
+<tr>
+<td><strong>PHP</strong></td>
+<td>8.1+</td>
+</tr>
+<tr>
+<td><strong>Postmark account</strong></td>
+<td>Free signup at <a href="https://postmarkapp.com">postmarkapp.com</a>. 100 free emails/month forever for accounts past approval.</td>
+</tr>
+<tr>
+<td><strong>Server Token</strong></td>
+<td>Per-Postmark-Server token from postmarkapp.com → Servers → your server → API Tokens.</td>
+</tr>
+<tr>
+<td><strong>Outbound HTTPS</strong></td>
+<td>Server must reach <code>api.postmarkapp.com</code> on port 443</td>
+</tr>
+<tr>
+<td><strong>Inbound HTTPS</strong></td>
+<td>Acelle install reachable so Postmark can POST webhooks (URL auto-registered)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Postmark&#39;s approval requirement.</strong> New accounts go through a short manual review before you can send live (typically &lt;24h on a weekday) to keep their sender reputation clean. Sandbox / testing is unblocked immediately.</p>
+</blockquote>
+<hr>
+<h2 id="2-install-the-plugin">2. Install the plugin</h2>
+<ol>
+<li>Download <code>acelle-postmark-v1.0.x.zip</code> from CodeCanyon.</li>
+<li><strong>System → Plugins</strong> → <strong>Install plugin</strong> → drop ZIP → <strong>Upload &amp; install</strong>.</li>
+</ol>
+<p><img src="images/postmark-plugin-01-install-upload-page.png" alt="Install plugin upload dialog"></p>
+<p>After install, <strong>Postmark</strong> appears as <strong>Inactive</strong>:</p>
+<p><img src="images/postmark-plugin-02-plugins-list-postmark-inactive.png" alt="Plugins list with Postmark inactive"></p>
+<hr>
+<h2 id="3-enable-the-plugin">3. Enable the plugin</h2>
+<p>Find the <strong>Postmark</strong> card → ⋮ → <strong>Enable</strong>.</p>
+<p>Card flips to <strong>Active</strong>:</p>
+<p><img src="images/postmark-plugin-04-plugins-list-postmark-active.png" alt="Plugins list with Postmark active"></p>
+<hr>
+<h2 id="4-add-postmark-as-a-sending-server">4. Add Postmark as a sending server</h2>
+<p><strong>Sending → Sending Servers → + Add Server</strong>.</p>
+<p><img src="images/postmark-plugin-05-sending-servers-list.png" alt="Sending servers list"></p>
+<p>Picker opens. Pick <strong>Postmark</strong> from the <strong>Plugin Servers</strong> group:</p>
+<p><img src="images/postmark-plugin-06-select-driver-type.png" alt="Choose Server Type — Postmark under Plugin Servers"></p>
+<hr>
+<h2 id="5-configure-server-token-optional-account-token-message-stream">5. Configure Server Token (+ optional Account Token + Message Stream)</h2>
+<p><img src="images/postmark-plugin-07-postmark-config-empty.png" alt="Empty Postmark configuration form"></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Name</strong></td>
+<td>Label (e.g. <code>Postmark (transactional)</code>)</td>
+</tr>
+<tr>
+<td><strong>Server Token</strong></td>
+<td>Per-Postmark-Server token from your Postmark server → API Tokens tab. Used for sending + webhook management on this server.</td>
+</tr>
+<tr>
+<td><strong>Account Token</strong> <em>(optional)</em></td>
+<td>Account-wide token from Postmark → Account → API Tokens. Only needed if you want Acelle to sync sender domains / signatures. Send + webhooks still work without it.</td>
+</tr>
+<tr>
+<td><strong>Message Stream</strong></td>
+<td>Postmark stream id (default: <code>outbound</code> — the standard transactional stream). Change only if you have a non-default broadcast stream.</td>
+</tr>
+<tr>
+<td><strong>Webhook URL</strong></td>
+<td><em>Read-only.</em> Populated after first send.</td>
+</tr>
+</tbody></table>
+<p><img src="images/postmark-plugin-08-postmark-config-filled.png" alt="Filled Postmark configuration form"></p>
+<p>Click <strong>Save</strong>. The plugin verifies the Server Token with a live <code>GET /server</code> probe — wrong token, inline error, row not saved.</p>
+<blockquote>
+<p><strong>Server Token vs Account Token — what&#39;s the difference?</strong>
+Postmark has multiple servers per account (e.g. one for transactional, one for broadcast). Each server has its own token. The <strong>Server Token</strong> is what sends email and manages webhooks on that specific server. The <strong>Account Token</strong> is account-wide — only used here to call <code>/domains</code> and <code>/senders</code> for the identity-sync feature.</p>
+</blockquote>
+<hr>
+<h2 id="6-auto-registered-webhook-how-it-works">6. Auto-registered webhook — how it works</h2>
+<p>First time a campaign / automation / transactional email goes through this Postmark server, the plugin&#39;s <code>setupBeforeSend</code> hook fires:</p>
+<ol>
+<li>Plugin calls Postmark&#39;s <code>POST /webhooks</code> with:<ul>
+<li><code>Url</code>: <code>https://your-acelle-domain/webhook/acelle-postmark/{server_uid}</code></li>
+<li><code>MessageStream</code>: the configured stream (default <code>outbound</code>).</li>
+<li><code>Triggers</code>: <code>Bounce</code>, <code>SpamComplaint</code>, <code>SubscriptionChange</code>.</li>
+</ul>
+</li>
+<li>Postmark returns a webhook id. Plugin stores <code>postmark_webhook_id</code> in the server config.</li>
+<li>Every event Postmark emits is POSTed to your Acelle URL.</li>
+</ol>
+<p>You never paste anything into Postmark&#39;s dashboard. The integration is fully automatic.</p>
+<blockquote>
+<p><strong>Postmark verifies the URL is reachable before saving.</strong> If your Acelle install is behind a firewall or on <code>localhost</code>, the webhook registration call fails and you&#39;ll see an error. For local development, expose via ngrok / cloudflared and point Acelle&#39;s <code>APP_URL</code> at the tunnel.</p>
+</blockquote>
+<hr>
+<h2 id="7-sending-identities-signatures-dkim-domains">7. Sending identities (signatures + DKIM domains)</h2>
+<p>Postmark has two identity kinds — both supported by this plugin <strong>if you set the Account Token</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it is</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Sender Signature</strong> (email-level)</td>
+<td>One specific email address verified via click-the-link confirmation</td>
+<td>Quick start; sending from one address; no DKIM</td>
+</tr>
+<tr>
+<td><strong>Domain</strong> (full domain)</td>
+<td>A full domain authenticated with DKIM CNAME records</td>
+<td>Production sending; any local-part; required for high-volume + Primary-tab placement</td>
+</tr>
+</tbody></table>
+<p>The plugin syncs both into Acelle&#39;s <code>sending_identities</code> table when an Account Token is present:</p>
+<ul>
+<li><strong>Two-way sync</strong> — <code>GET /senders</code> + <code>GET /domains</code> reconcile with Acelle on every sync.</li>
+<li><strong>Add a domain from inside Acelle</strong> — <code>POST /domains</code> fires when admin (or customer with permission) registers a new sending domain.</li>
+<li><strong>Re-verify on demand</strong> — <code>PUT /domains/{id}/verifydkim</code> exposed as the <strong>Re-check</strong> button.</li>
+</ul>
+<p>Without an Account Token, send + webhook still work but you&#39;ll manage signatures / domains directly in Postmark&#39;s dashboard.</p>
+<h3 id="why-dkim-matters">Why DKIM matters</h3>
+<p>With DKIM + SPF + DMARC alignment (Postmark&#39;s <code>/domains</code> API surfaces all three), receiving mailbox providers (Gmail, Outlook, Yahoo, Apple Mail) authenticate the message and place it in the Primary tab instead of Promotions / Spam.</p>
+<hr>
+<h2 id="8-test-the-connection">8. Test the connection</h2>
+<p><strong>(a) Connection test</strong> — built into the new-server form. Save handler runs a live <code>/server</code> probe against the Server Token.</p>
+<p><strong>(b) Test send</strong> — from the Sending Servers list, ⋮ → <strong>Test send</strong>. Single test email through the driver. <strong>The first test send also triggers webhook auto-registration</strong> — see <a href="#6-auto-registered-webhook-how-it-works">§6</a>.</p>
+<hr>
+<h2 id="9-assign-the-server-to-a-plan-or-customer">9. Assign the server to a plan or customer</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>System server, plan-attached</strong></td>
+<td>Your Acelle SaaS sends on behalf of customers. Assign Postmark at <strong>Admin → Plans → [plan] → Sending Servers</strong>.</td>
+</tr>
+<tr>
+<td><strong>Per-customer</strong></td>
+<td>A customer brings their own Postmark account. They add the server from their own <strong>Sending Servers</strong> page.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="10-troubleshooting">10. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>&quot;401 Unauthorized&quot; on save</td>
+<td>Server Token wrong or revoked</td>
+<td>Re-copy from Postmark → your server → API Tokens</td>
+</tr>
+<tr>
+<td>First send fails with &quot;Webhook registration failed&quot;</td>
+<td>Acelle install unreachable from Postmark&#39;s network</td>
+<td>Acelle must be publicly reachable over HTTPS. For dev, use ngrok / cloudflared.</td>
+</tr>
+<tr>
+<td>Sends rejected with &quot;Inactive recipient&quot;</td>
+<td>Postmark&#39;s suppression list blocks the address</td>
+<td>Check Postmark dashboard → Suppressions; reactivate if false-positive</td>
+</tr>
+<tr>
+<td>Sends accepted but never delivered</td>
+<td>New Postmark account still pending approval</td>
+<td>Submit your account for review at postmarkapp.com → Account → Request approval. &lt;24h on weekdays.</td>
+</tr>
+<tr>
+<td>Identity sync fails with &quot;Account Token required&quot;</td>
+<td>The Account Token field is blank</td>
+<td>Either add an Account Token, or accept that identity management happens in Postmark&#39;s dashboard</td>
+</tr>
+<tr>
+<td>Plugin Active but Postmark missing from picker</td>
+<td>Stale opcache / view cache</td>
+<td><code>php artisan optimize:clear</code> and reload</td>
+</tr>
+</tbody></table>
+<p>Plugin HTTP calls log to <code>storage/logs/laravel.log</code>.</p>
+<hr>
+<h2 id="11-uninstall">11. Uninstall</h2>
+<ol>
+<li><strong>System → Plugins</strong> → find <strong>Postmark</strong> → ⋮ → <strong>Disable</strong>. New sending servers can no longer be created with this driver; existing rows still work.</li>
+<li>To remove files: ⋮ → <strong>Delete</strong>. Drops every <code>sending_servers</code> row of type <code>acelle-postmark</code>.</li>
+</ol>
+<p>You may also want to disable the webhook in Postmark&#39;s dashboard manually.</p>
+<hr>
+<h2 id="support">Support</h2>
+<ul>
+<li>Documentation: this guide + plugin source code comments</li>
+<li>Issue tracker / questions: CodeCanyon item comments page</li>
+<li>Direct contact: see the <strong>Author</strong> column on the CodeCanyon item page</li>
+</ul>
+<p>Postmark account / approval / domain-verification issues go to Postmark support directly.</p>
+
+</main>
+</body>
+</html>

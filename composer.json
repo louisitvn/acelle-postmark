@@ -1,0 +1,27 @@
+{
+    "name": "acelle/postmark",
+    "title": "Postmark",
+    "version": "1.0.0",
+    "app_version": "4.2.0",
+    "description": "Postmark (postmarkapp.com) integration plugin for Acelle",
+    "authors": [
+        {
+            "name": "Mailixa",
+            "email": "louisitvn@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Acelle\\Plugin\\Postmark\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Acelle\\Plugin\\Postmark\\ServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
