@@ -37,7 +37,7 @@ A drop-in plugin that adds **Postmark** (`postmarkapp.com`) as a sending-server 
 
 ## 2. Install the plugin
 
-1. Download `acelle-postmark-v1.0.x.zip` from CodeCanyon.
+1. Download the plugin ZIP from your account's **Plugins** page.
 2. **System → Plugins** → **Install plugin** → drop ZIP → **Upload & install**.
 
 ![Install plugin upload dialog](images/postmark-plugin-01-install-upload-page.png)
@@ -176,7 +176,6 @@ You may also want to disable the webhook in Postmark's dashboard manually.
 ## Support
 
 - Documentation: this guide + plugin source code comments
-- Issue tracker / questions: CodeCanyon item comments page
-- Direct contact: see the **Author** column on the CodeCanyon item page
+- Questions & issues: contact **support@acellemail.com**
 
 Postmark account / approval / domain-verification issues go to Postmark support directly.
