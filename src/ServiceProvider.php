@@ -39,6 +39,13 @@ class ServiceProvider extends Base
                 'postmark_webhook_user',
                 'postmark_webhook_pass',
             ],
+            // Credentials — encrypted at rest by SendingServer::setConfig().
+            // Message stream, webhook id and basic-auth USER are identifiers.
+            'secret_config_keys' => [
+                'postmark_server_token',
+                'postmark_account_token',
+                'postmark_webhook_pass',
+            ],
             'name'         => 'Postmark',
             'description'  => 'Send via Postmark (postmarkapp.com) — server token + auto-registered webhook',
             'icon_url'     => route('plugin.acelle.postmark.icon'),
