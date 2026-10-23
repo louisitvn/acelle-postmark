@@ -383,9 +383,17 @@ class PostmarkDriver extends AbstractDriver implements
 
     // ─── SupportsIdentitySync (requires account token) ─────────────────────
 
+    /**
+     * Every sender signature and every domain, all pages. A list or detail that
+     * cannot be read makes the whole sync fail: nothing is archived, and the
+     * admin sees Postmark's answer. Each used to be logged and skipped, and
+     * each list read its first 500 rows only.
+     */
     public function fetchIdentities(): array
     {
         if ($this->config('postmark_account_token', '') === '') {
+            // A product decision, not a failure: the account token is optional,
+            // and without it the driver syncs nothing.
             Log::info('Postmark fetchIdentities skipped — postmark_account_token not configured', [
                 'server_id' => $this->server->id,
             ]);
@@ -395,93 +403,112 @@ class PostmarkDriver extends AbstractDriver implements
         $identities = [];
 
         // EMAIL — verified senders (account-wide).
-        try {
-            $resp = $this->client()->accountRequest('GET', 'senders?count=500&offset=0', null);
-            foreach (($resp['SenderSignatures'] ?? []) as $s) {
-                if (empty($s['EmailAddress'])) continue;
-                $identities[] = Identity::email(
-                    address: (string) $s['EmailAddress'],
-                    status: !empty($s['Confirmed']) ? IdentityStatus::VERIFIED : IdentityStatus::PENDING,
-                    displayName: $s['Name'] ?? null,
-                    vendorMeta: [
-                        'id'          => $s['ID']          ?? null,
-                        'confirmed'   => $s['Confirmed']   ?? null,
-                        'spfVerified' => $s['SPFVerified'] ?? null,
-                    ],
-                );
-            }
-        } catch (Error $e) {
-            Log::warning('Postmark fetchIdentities: senders list failed', [
-                'server_id' => $this->server->id,
-                'error'     => $e->getMessage(),
-            ]);
+        foreach ($this->listAll('senders', 'SenderSignatures') as $s) {
+            if (empty($s['EmailAddress'])) continue;
+            $identities[] = $this->senderIdentity($s);
         }
 
         // DOMAIN — domains list (account-wide). List shape is reduced —
         // follow up per-entry GET for full DNS detail.
-        try {
-            $resp = $this->client()->accountRequest('GET', 'domains?count=500&offset=0', null);
-            foreach (($resp['Domains'] ?? []) as $d) {
-                $id = $d['ID'] ?? null;
-                if ($id === null) continue;
-                try {
-                    $detail = $this->client()->accountRequest('GET', 'domains/' . $id, null);
-                    $identities[] = $this->mapDomainToIdentity($detail);
-                } catch (Error $e) {
-                    Log::warning('Postmark fetchIdentities: domain detail failed', [
-                        'server_id' => $this->server->id,
-                        'domain'    => $d['Name'] ?? '?',
-                        'error'     => $e->getMessage(),
-                    ]);
-                }
+        foreach ($this->listAll('domains', 'Domains') as $d) {
+            $id = $d['ID'] ?? null;
+            if ($id === null) continue;
+            $detail = $this->domainDetail((int) $id);
+            // Null = deleted between the list and its detail: gone, left out.
+            if ($detail !== null) {
+                $identities[] = $this->mapDomainToIdentity($detail);
             }
-        } catch (Error $e) {
-            Log::warning('Postmark fetchIdentities: domains list failed', [
-                'server_id' => $this->server->id,
-                'error'     => $e->getMessage(),
-            ]);
         }
 
         return $identities;
     }
 
+    /**
+     * Null only when Postmark does not have the identity; a failed call
+     * propagates. Without the account token nothing can be looked up — that
+     * throws too: read as "not found" it would archive the identity.
+     */
     public function fetchIdentity(IdentityKind $kind, string $value): ?Identity
     {
         if ($this->config('postmark_account_token', '') === '') {
-            return null;
+            throw new \RuntimeException("Postmark server \"{$this->server->name}\" has no account token, so {$value} cannot be looked up. Set the account token on the server.");
         }
 
         if ($kind === IdentityKind::DOMAIN) {
             $id = $this->findDomainIdByName($value);
             if ($id === null) return null;
-            try {
-                $detail = $this->client()->accountRequest('GET', 'domains/' . $id, null);
-            } catch (Error $e) {
-                return null;
-            }
-            return $this->mapDomainToIdentity($detail);
+            $detail = $this->domainDetail($id);
+            return $detail === null ? null : $this->mapDomainToIdentity($detail);
         }
 
         if ($kind === IdentityKind::EMAIL) {
-            try {
-                $resp = $this->client()->accountRequest('GET', 'senders?count=500&offset=0', null);
-            } catch (Error $e) {
-                return null;
-            }
             $needle = strtolower($value);
-            foreach (($resp['SenderSignatures'] ?? []) as $s) {
+            foreach ($this->listAll('senders', 'SenderSignatures') as $s) {
                 if (strtolower((string) ($s['EmailAddress'] ?? '')) === $needle) {
-                    return Identity::email(
-                        address: (string) $s['EmailAddress'],
-                        status: !empty($s['Confirmed']) ? IdentityStatus::VERIFIED : IdentityStatus::PENDING,
-                        displayName: $s['Name'] ?? null,
-                    );
+                    return $this->senderIdentity($s);
                 }
             }
             return null;
         }
 
         return null;
+    }
+
+    /** @param array<string, mixed> $s  a SenderSignatures row */
+    private function senderIdentity(array $s): Identity
+    {
+        return Identity::email(
+            address: (string) $s['EmailAddress'],
+            status: !empty($s['Confirmed']) ? IdentityStatus::VERIFIED : IdentityStatus::PENDING,
+            displayName: $s['Name'] ?? null,
+            vendorMeta: [
+                'id'          => $s['ID']          ?? null,
+                'confirmed'   => $s['Confirmed']   ?? null,
+                'spfVerified' => $s['SPFVerified'] ?? null,
+            ],
+        );
+    }
+
+    /**
+     * Every row of a Postmark account list (`senders`, `domains`), walking
+     * `TotalCount`. A failed page propagates.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function listAll(string $path, string $key): array
+    {
+        $rows = [];
+        $offset = 0;
+        do {
+            $resp  = $this->client()->accountRequest('GET', $path . '?count=500&offset=' . $offset, null);
+            $page  = $resp[$key] ?? null;
+            $total = $resp['TotalCount'] ?? null;
+            if (!is_array($page) || !is_int($total)) {
+                throw new \UnexpectedValueException("Postmark answered the {$path} list without {$key} / TotalCount: " . json_encode($resp));
+            }
+            array_push($rows, ...$page);
+            $offset += count($page);
+        } while ($page !== [] && $offset < $total);
+
+        return $rows;
+    }
+
+    /**
+     * GET /domains/{id}; null when Postmark answers 404. Any other failure
+     * propagates.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function domainDetail(int $id): ?array
+    {
+        try {
+            return $this->client()->accountRequest('GET', 'domains/' . $id, null);
+        } catch (Error $e) {
+            if ($e->statusCode === 404) {
+                return null;
+            }
+            throw $e;
+        }
     }
 
     // ─── SupportsRemoteDomainVerify (requires account token) ───────────────
@@ -515,16 +542,9 @@ class PostmarkDriver extends AbstractDriver implements
             ]);
         }
 
-        try {
-            $detail = $this->client()->accountRequest('GET', 'domains/' . $id, null);
-        } catch (Error $e) {
-            // Deleted between the list and this read. Anything else says
-            // nothing about the domain.
-            if ($e->statusCode === 404) {
-                throw new DomainNotAtVendor('Postmark', $domain);
-            }
-            throw $e;
-        }
+        // Null = deleted between the list and this read.
+        $detail = $this->domainDetail($id)
+            ?? throw new DomainNotAtVendor('Postmark', $domain);
         return $this->mapDomainToVerificationResult($detail);
     }
 
@@ -539,21 +559,11 @@ class PostmarkDriver extends AbstractDriver implements
     private function findDomainIdByName(string $name): ?int
     {
         $needle = strtolower($name);
-        $offset = 0;
-        do {
-            $resp  = $this->client()->accountRequest('GET', 'domains?count=500&offset=' . $offset, null);
-            $page  = $resp['Domains'] ?? null;
-            $total = $resp['TotalCount'] ?? null;
-            if (!is_array($page) || !is_int($total)) {
-                throw new \UnexpectedValueException('Postmark answered the domain list without Domains / TotalCount: ' . json_encode($resp));
+        foreach ($this->listAll('domains', 'Domains') as $d) {
+            if (strtolower((string) ($d['Name'] ?? '')) === $needle && isset($d['ID'])) {
+                return (int) $d['ID'];
             }
-            foreach ($page as $d) {
-                if (strtolower((string) ($d['Name'] ?? '')) === $needle && isset($d['ID'])) {
-                    return (int) $d['ID'];
-                }
-            }
-            $offset += count($page);
-        } while ($page !== [] && $offset < $total);
+        }
 
         return null;
     }
