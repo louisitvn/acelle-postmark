@@ -1,8 +1,8 @@
 {
     "name": "acelle/postmark",
     "title": "Postmark",
-    "version": "1.0.0",
-    "app_version": "4.2.0",
+    "version": "1.0.1",
+    "app_version": "4.2.0-p181",
     "description": "Postmark (postmarkapp.com) integration plugin for Acelle",
     "authors": [
         {

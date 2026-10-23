@@ -16,6 +16,7 @@ use App\SendingServers\DomainVerification\VerificationResult;
 use App\SendingServers\Drivers\AbstractDriver;
 use App\SendingServers\Drivers\SendResult;
 use App\SendingServers\Drivers\TestResult;
+use App\SendingServers\Exceptions\DomainNotAtVendor;
 use App\SendingServers\Identities\Identity;
 use App\SendingServers\Identities\IdentityKind;
 use App\SendingServers\Identities\IdentityStatus;
@@ -500,15 +501,8 @@ class PostmarkDriver extends AbstractDriver implements
 
     public function pollDomain(string $domain): VerificationResult
     {
-        $id = $this->findDomainIdByName($domain);
-        if ($id === null) {
-            return new VerificationResult(
-                domain: $domain,
-                records: [],
-                verified: false,
-                polledAt: new DateTimeImmutable(),
-            );
-        }
+        $id = $this->findDomainIdByName($domain)
+            ?? throw new DomainNotAtVendor('Postmark', $domain);
 
         try {
             $this->client()->accountRequest('PUT', 'domains/' . $id . '/verifyDkim', null);
@@ -524,31 +518,43 @@ class PostmarkDriver extends AbstractDriver implements
         try {
             $detail = $this->client()->accountRequest('GET', 'domains/' . $id, null);
         } catch (Error $e) {
-            return new VerificationResult(
-                domain: $domain,
-                records: [],
-                verified: false,
-                polledAt: new DateTimeImmutable(),
-            );
+            // Deleted between the list and this read. Anything else says
+            // nothing about the domain.
+            if ($e->statusCode === 404) {
+                throw new DomainNotAtVendor('Postmark', $domain);
+            }
+            throw $e;
         }
         return $this->mapDomainToVerificationResult($detail);
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────
 
+    /**
+     * The domain's Postmark id; null when the account has no such domain. Walks
+     * every page of the list (TotalCount), so null is a complete "no". A failed
+     * request propagates: it says nothing about the domain — read as "no such
+     * domain" it would archive one Postmark still has.
+     */
     private function findDomainIdByName(string $name): ?int
     {
-        try {
-            $resp = $this->client()->accountRequest('GET', 'domains?count=500&offset=0', null);
-        } catch (Error $e) {
-            return null;
-        }
         $needle = strtolower($name);
-        foreach (($resp['Domains'] ?? []) as $d) {
-            if (strtolower((string) ($d['Name'] ?? '')) === $needle && isset($d['ID'])) {
-                return (int) $d['ID'];
+        $offset = 0;
+        do {
+            $resp  = $this->client()->accountRequest('GET', 'domains?count=500&offset=' . $offset, null);
+            $page  = $resp['Domains'] ?? null;
+            $total = $resp['TotalCount'] ?? null;
+            if (!is_array($page) || !is_int($total)) {
+                throw new \UnexpectedValueException('Postmark answered the domain list without Domains / TotalCount: ' . json_encode($resp));
             }
-        }
+            foreach ($page as $d) {
+                if (strtolower((string) ($d['Name'] ?? '')) === $needle && isset($d['ID'])) {
+                    return (int) $d['ID'];
+                }
+            }
+            $offset += count($page);
+        } while ($page !== [] && $offset < $total);
+
         return null;
     }
 
@@ -572,11 +578,10 @@ class PostmarkDriver extends AbstractDriver implements
     {
         $dkim = !empty($domain['DKIMVerified']);
         $rp   = !empty($domain['ReturnPathDomainVerified']);
-        $status = ($dkim && $rp) ? IdentityStatus::VERIFIED : IdentityStatus::PENDING;
 
         return Identity::domain(
             name: (string) ($domain['Name'] ?? ''),
-            status: $status,
+            status: $this->domainStatusOf($domain),
             dkimStatus: $dkim ? IdentityStatus::VERIFIED : IdentityStatus::PENDING,
             vendorMeta: [
                 'id'                       => $domain['ID']                       ?? null,
@@ -589,6 +594,21 @@ class PostmarkDriver extends AbstractDriver implements
     }
 
     /**
+     * A domain's status, the same for identity sync and Verify: VERIFIED once
+     * Postmark has verified both its DKIM and its Return-Path. Postmark has no
+     * rejected or switched-off domain state, so anything short of that is
+     * PENDING: the DNS is not right yet.
+     *
+     * @param  array<string, mixed>  $domain   detail blob from GET /domains/{id}
+     */
+    private function domainStatusOf(array $domain): IdentityStatus
+    {
+        return !empty($domain['DKIMVerified']) && !empty($domain['ReturnPathDomainVerified'])
+            ? IdentityStatus::VERIFIED
+            : IdentityStatus::PENDING;
+    }
+
+    /**
      * @param  array<string, mixed>  $domain
      */
     private function mapDomainToVerificationResult(array $domain): VerificationResult
@@ -596,7 +616,7 @@ class PostmarkDriver extends AbstractDriver implements
         return new VerificationResult(
             domain:   (string) ($domain['Name'] ?? ''),
             records:  $this->extractDnsRecords($domain),
-            verified: !empty($domain['DKIMVerified']) && !empty($domain['ReturnPathDomainVerified']),
+            status:   $this->domainStatusOf($domain),
             polledAt: new DateTimeImmutable(),
             vendorMeta: [
                 'id'                       => $domain['ID']                       ?? null,

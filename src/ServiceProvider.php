@@ -3,6 +3,7 @@
 namespace Acelle\Plugin\Postmark;
 
 use App\Library\Facades\Hook;
+use App\SendingServers\DomainVerification\VerificationResult;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider as Base;
 
@@ -25,6 +26,14 @@ class ServiceProvider extends Base
 
     public function boot(): void
     {
+        // The platform's domain-verification result carries a full status since
+        // 2026-10-23 (it was a yes/no). On an older platform the plugin would
+        // install, then fail at the first domain registration or Verify. Refuse
+        // to load instead: the platform reports a plugin that fails to boot.
+        if (!property_exists(VerificationResult::class, 'status')) {
+            throw new \RuntimeException('The Postmark plugin needs a newer version of the platform: its domain-verification result has no status (VerificationResult::$status). Upgrade the platform, then activate the plugin again.');
+        }
+
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'postmark');
         $this->loadRoutesFrom(__DIR__ . '/../routes.php');
 
